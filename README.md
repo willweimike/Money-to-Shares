@@ -1,4 +1,4 @@
-# Money to Shares Chrome Extension
+# Money to Shares Chrome Extension - 即時查看網購的數字能買幾張聯發科/NVIDIA/台積電
 
 A dependency-free Manifest V3 Chrome extension that converts selected money amounts into purchasable shares for NVIDIA, MediaTek, and TSMC.
 
