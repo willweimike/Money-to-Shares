@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Money to Shares Details</title>
+    <link rel="stylesheet" href="./options.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div>
+          <h1>Money to Shares</h1>
+          <p id="summary">Loading stock settings...</p>
+        </div>
+        <div class="toolbar">
+          <button id="refreshButton" type="button">Refresh prices</button>
+        </div>
+      </header>
+
+      <section class="info-section">
+        <h2>How it works</h2>
+        <p>Select a single positive number on any web page. The extension treats the selected amount as the currency of your selected company, then calculates purchasable shares from the latest cached quote.</p>
+      </section>
+
+      <section id="stocksList" class="stocks-list" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

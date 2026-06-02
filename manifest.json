@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Money to Shares",
+  "description": "Select a money amount on any page to calculate how many shares it can buy.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "alarms", "scripting", "storage"],
+  "host_permissions": ["https://query1.finance.yahoo.com/*"],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Money to Shares"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "options_page": "src/options.html"
+}

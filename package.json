@@ -1,0 +1,14 @@
+{
+  "name": "stock-selection-calculator-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A Manifest V3 Chrome extension that converts selected money amounts into purchasable stock shares.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/core/selection.js && node --check src/core/stocks.js && node --check src/core/calculator.js && node --check src/core/quotes.js && node --check src/core/storage.js && node --check src/background.js && node --check src/content.js && node --check src/popup.js && node --check src/options.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Money to Shares</title>
+    <link rel="stylesheet" href="./popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="header">
+        <div>
+          <h1>Money to Shares</h1>
+          <p class="page-title">Select a number on any page to calculate purchasable shares.</p>
+        </div>
+      </header>
+
+      <label class="field">
+        <span>Company</span>
+        <select id="companySelect"></select>
+      </label>
+
+      <section id="quotePanel" class="quote-panel" aria-live="polite"></section>
+
+      <div class="actions">
+        <button id="refreshButton" type="button">Refresh prices</button>
+        <button id="optionsButton" class="secondary" type="button">Details</button>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite">Ready</p>
+    </main>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>
