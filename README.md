@@ -1,4 +1,4 @@
-# Money to Shares Chrome Extension - 即時查看網購的數字能買幾張聯發科/NVIDIA/台積電
+# Money to Shares Chrome Extension
 
 A dependency-free Manifest V3 Chrome extension that converts selected money amounts into purchasable shares for NVIDIA, MediaTek, and TSMC.
 
@@ -16,7 +16,7 @@ A dependency-free Manifest V3 Chrome extension that converts selected money amou
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select this folder: `path/to/chrome-extension`.
+4. Select this folder: `/Users/awei/Documents/chrome-extension`.
 
 ## Development
 
@@ -26,6 +26,10 @@ npm run check
 ```
 
 The extension uses only browser and Node built-ins, so no install step is required for the current code.
+
+## Icon
+
+The extension icon is generated from `/Users/awei/Downloads/Money-to-Shares.png` into `16`, `32`, `48`, and `128` pixel PNG assets under `icons/`. The manifest uses those assets for both extension metadata and the Chrome toolbar action.
 
 The MVP uses Yahoo Finance's unofficial chart endpoint directly from the extension. For production distribution, replace the quote adapter with a backend proxy or official market data provider.
 
