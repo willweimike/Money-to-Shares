@@ -106,12 +106,12 @@ if (!globalThis.__stockSelectionCalculatorLoaded) {
   }
 
   function buildResultMarkup(response) {
-    const company = response.company;
+    const stock = response.stock;
     const quote = response.quote;
     const calculation = response.calculation;
 
     return `
-      <div class="ssc-title">${escapeHtml(company.name)} ${escapeHtml(company.symbol)}</div>
+      <div class="ssc-title">${escapeHtml(stock.symbol)}</div>
       <div class="ssc-result">${escapeHtml(response.formatted)}</div>
       <div class="ssc-meta">Price ${escapeHtml(quote.currency)} ${escapeHtml(String(quote.price))} · Updated ${escapeHtml(formatTime(quote.updatedAt))}</div>
       <div class="ssc-meta">Selected amount: ${escapeHtml(quote.currency)} ${escapeHtml(String(calculation.amount))}</div>

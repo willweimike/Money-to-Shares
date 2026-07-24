@@ -1,29 +1,86 @@
 import { calculateShares, formatCalculation } from "./core/calculator.js";
-import { fetchCompanyQuote, getCachedQuote, mergeQuoteCache } from "./core/quotes.js";
-import { getCompany, listCompanies } from "./core/stocks.js";
-import { getQuotes, getSettings, saveQuotes } from "./core/storage.js";
+import { fetchStockQuote, getCachedQuote, mergeQuoteCache } from "./core/quotes.js";
+import { findStock } from "./core/stocks.js";
+import { getQuotes, getSettings, getStockList, saveQuotes } from "./core/storage.js";
+
+export function createBackgroundHandlers({
+  storageLocal = chrome.storage.local,
+  runtime = chrome.runtime,
+  fetchImpl = fetch
+} = {}) {
+  async function handleCalculateSelection(amount) {
+    const [stocks, settings] = await Promise.all([getStockList(storageLocal, runtime), getSettings(storageLocal, runtime)]);
+    const stock = findStock(stocks, settings.selectedStockId);
+    const quote = await getQuoteForStock(stock);
+    const calculation = calculateShares(amount, quote, stock);
+
+    return {
+      ok: true,
+      stock,
+      quote,
+      calculation,
+      formatted: formatCalculation(calculation, stock)
+    };
+  }
+
+  async function getQuoteForStock(stock) {
+    const quotes = await getQuotes(storageLocal, runtime);
+    const cachedQuote = getCachedQuote(quotes, stock.id);
+    if (cachedQuote) {
+      return cachedQuote;
+    }
+
+    const quote = await fetchStockQuote(stock, fetchImpl);
+    const nextQuotes = mergeQuoteCache(quotes, quote);
+    await saveQuotes(storageLocal, runtime, nextQuotes);
+    return quote;
+  }
+
+  async function refreshAllQuotes() {
+    const stocks = await getStockList(storageLocal, runtime);
+    const existingQuotes = await getQuotes(storageLocal, runtime);
+    let nextQuotes = existingQuotes;
+
+    for (const stock of stocks) {
+      const quote = await fetchStockQuote(stock, fetchImpl);
+      nextQuotes = mergeQuoteCache(nextQuotes, quote);
+    }
+
+    await saveQuotes(storageLocal, runtime, nextQuotes);
+    return nextQuotes;
+  }
+
+  return {
+    handleCalculateSelection,
+    refreshAllQuotes
+  };
+}
+
+const handlers = createBackgroundHandlers();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create("refresh-quotes", { delayInMinutes: 0.1, periodInMinutes: 5 });
-  refreshAllQuotes().catch(() => {});
+  handlers.refreshAllQuotes().catch(() => {});
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "refresh-quotes") {
-    refreshAllQuotes().catch(() => {});
+    handlers.refreshAllQuotes().catch(() => {});
   }
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "calculate-selection") {
-    handleCalculateSelection(message.amount)
+    handlers
+      .handleCalculateSelection(message.amount)
       .then((payload) => sendResponse(payload))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
 
   if (message?.type === "refresh-quotes") {
-    refreshAllQuotes()
+    handlers
+      .refreshAllQuotes()
       .then((quotes) => sendResponse({ ok: true, quotes }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
@@ -31,44 +88,3 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
-
-async function handleCalculateSelection(amount) {
-  const settings = await getSettings(chrome.storage.sync, chrome.runtime);
-  const company = getCompany(settings.companyId);
-  const quote = await getQuoteForCompany(company);
-  const calculation = calculateShares(amount, quote, company);
-
-  return {
-    ok: true,
-    company,
-    quote,
-    calculation,
-    formatted: formatCalculation(calculation, company)
-  };
-}
-
-async function getQuoteForCompany(company) {
-  const quotes = await getQuotes(chrome.storage.local, chrome.runtime);
-  const cachedQuote = getCachedQuote(quotes, company.id);
-  if (cachedQuote) {
-    return cachedQuote;
-  }
-
-  const quote = await fetchCompanyQuote(company);
-  const nextQuotes = mergeQuoteCache(quotes, quote);
-  await saveQuotes(chrome.storage.local, chrome.runtime, nextQuotes);
-  return quote;
-}
-
-async function refreshAllQuotes() {
-  const existingQuotes = await getQuotes(chrome.storage.local, chrome.runtime);
-  let nextQuotes = existingQuotes;
-
-  for (const company of listCompanies()) {
-    const quote = await fetchCompanyQuote(company);
-    nextQuotes = mergeQuoteCache(nextQuotes, quote);
-  }
-
-  await saveQuotes(chrome.storage.local, chrome.runtime, nextQuotes);
-  return nextQuotes;
-}

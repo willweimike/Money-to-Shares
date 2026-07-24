@@ -1,6 +1,5 @@
 import { formatPrice } from "./core/calculator.js";
-import { listCompanies } from "./core/stocks.js";
-import { getQuotes, getSettings } from "./core/storage.js";
+import { getQuotes, getSettings, getStockList } from "./core/storage.js";
 
 const summary = document.querySelector("#summary");
 const refreshButton = document.querySelector("#refreshButton");
@@ -26,22 +25,22 @@ refreshButton.addEventListener("click", async () => {
 
 async function loadAndRender() {
   try {
-    const [settings, quotes] = await Promise.all([
-      getSettings(chrome.storage.sync, chrome.runtime),
+    const [stocks, settings, quotes] = await Promise.all([
+      getStockList(chrome.storage.local, chrome.runtime),
+      getSettings(chrome.storage.local, chrome.runtime),
       getQuotes(chrome.storage.local, chrome.runtime)
     ]);
-    render(settings, quotes);
+    render(stocks, settings, quotes);
   } catch (error) {
     summary.textContent = error.message;
   }
 }
 
-function render(settings, quotes) {
-  const selectedCompany = listCompanies().find((company) => company.id === settings.companyId);
-  summary.textContent = `Current company: ${selectedCompany.name}`;
+function render(stocks, settings, quotes) {
+  summary.textContent = `Selected stock: ${settings.selectedStockId}`;
   stocksList.replaceChildren(
-    ...listCompanies().map((company) => {
-      const quote = quotes[company.id];
+    ...stocks.map((stock) => {
+      const quote = quotes[stock.id];
       const card = document.createElement("article");
       const main = document.createElement("div");
       const title = document.createElement("h2");
@@ -53,10 +52,8 @@ function render(settings, quotes) {
       main.className = "note-main";
       price.className = "quote-price";
 
-      title.textContent = `${company.name}${settings.companyId === company.id ? " (selected)" : ""}`;
-      details.textContent = `${company.symbol} · ${company.currency} · ${
-        company.market === "TW" ? "Taiwan stock, 1 lot = 1,000 shares" : "US stock, shares"
-      }`;
+      title.textContent = `${stock.symbol}${settings.selectedStockId === stock.id ? " (selected)" : ""}`;
+      details.textContent = `${stock.code} · ${stock.currency} · Taiwan stock, 1 lot = 1,000 shares`;
       time.textContent = quote ? `Updated ${formatDate(quote.updatedAt)}` : "No quote cached yet";
       price.textContent = quote ? `${quote.currency} ${formatPrice(quote.price)}` : "--";
 

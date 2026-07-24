@@ -16,9 +16,17 @@
       </header>
 
       <label class="field">
-        <span>Company</span>
-        <select id="companySelect"></select>
+        <span>Selected Taiwan stock</span>
+        <select id="stockSelect"></select>
       </label>
+
+      <form id="addStockForm" class="add-stock-form">
+        <label class="field">
+          <span>Add stock code</span>
+          <input id="stockCodeInput" inputmode="numeric" autocomplete="off" placeholder="2330, 0050, 00878">
+        </label>
+        <button id="addStockButton" type="submit">Add</button>
+      </form>
 
       <section id="quotePanel" class="quote-panel" aria-live="polite"></section>
 

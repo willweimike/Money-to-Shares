@@ -1,22 +1,24 @@
 # Money to Shares Chrome Extension
 
-A dependency-free Manifest V3 Chrome extension that converts selected money amounts into purchasable shares for NVIDIA, MediaTek, and TSMC.
+A dependency-free Manifest V3 Chrome extension that converts selected NTD amounts into purchasable shares for a custom local list of Taiwan stocks and ETFs.
 
 ## Behavior
 
 - Click the extension icon on an `http` or `https` page to enable the calculator for that page.
+- Add Taiwan stock or ETF codes in the popup. Codes must be 4 to 6 digits, such as `2330`, `0050`, or `00878`.
+- The extension stores your custom list and selected stock in `chrome.storage.local`.
 - Select a single number on the enabled page.
-- The extension reads your selected company preference from the popup.
+- The extension reads your selected Taiwan stock from the popup.
 - A floating result appears next to the selection with the latest cached stock price and computed shares.
-- NVIDIA uses `NVDA` in USD. MediaTek uses `2454.TW` in TWD. TSMC uses `2330.TW` in TWD.
 - Taiwan stocks display both total shares and lots/shares, where one lot is 1,000 shares.
+- New installs default to `2330.TW` and `2454.TW`; users can remove or replace them.
 
 ## Load in Chrome
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select this folder: `/Users/awei/Documents/chrome-extension`.
+4. Select this folder: `/Users/awei/Documents/GitHub/Money-to-Shares`.
 
 ## Development
 

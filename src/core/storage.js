@@ -1,24 +1,38 @@
 import { QUOTE_CACHE_KEY, normalizeQuoteMap } from "./quotes.js";
-import { DEFAULT_COMPANY_ID, isKnownCompanyId } from "./stocks.js";
+import { findStock, normalizeStockList } from "./stocks.js";
 
 export const SETTINGS_KEY = "stockSelectionCalculator:settings";
+export const STOCK_LIST_KEY = "stockSelectionCalculator:stockList";
 
-export function normalizeSettings(value) {
-  const companyId = value?.companyId;
+export function normalizeSettings(value, stocks = normalizeStockList()) {
+  const selectedStockId = value?.selectedStockId;
 
   return {
-    companyId: isKnownCompanyId(companyId) ? companyId : DEFAULT_COMPANY_ID
+    selectedStockId: findStock(stocks, selectedStockId).id
   };
 }
 
-export async function getSettings(storageSync, runtime) {
-  const result = await storageGet(storageSync, runtime, SETTINGS_KEY);
-  return normalizeSettings(result[SETTINGS_KEY]);
+export async function getSettings(storageLocal, runtime) {
+  const result = await storageGet(storageLocal, runtime, [SETTINGS_KEY, STOCK_LIST_KEY]);
+  const stocks = normalizeStockList(result[STOCK_LIST_KEY]);
+  return normalizeSettings(result[SETTINGS_KEY], stocks);
 }
 
-export async function saveSettings(storageSync, runtime, settings) {
-  const normalized = normalizeSettings(settings);
-  await storageSet(storageSync, runtime, { [SETTINGS_KEY]: normalized });
+export async function saveSettings(storageLocal, runtime, settings) {
+  const stocks = await getStockList(storageLocal, runtime);
+  const normalized = normalizeSettings(settings, stocks);
+  await storageSet(storageLocal, runtime, { [SETTINGS_KEY]: normalized });
+  return normalized;
+}
+
+export async function getStockList(storageLocal, runtime) {
+  const result = await storageGet(storageLocal, runtime, STOCK_LIST_KEY);
+  return normalizeStockList(result[STOCK_LIST_KEY]);
+}
+
+export async function saveStockList(storageLocal, runtime, stocks) {
+  const normalized = normalizeStockList(stocks);
+  await storageSet(storageLocal, runtime, { [STOCK_LIST_KEY]: normalized });
   return normalized;
 }
 

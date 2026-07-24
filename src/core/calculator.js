@@ -21,7 +21,7 @@ export function calculateShares(amount, quote, company) {
     lots,
     oddLots,
     currency: quote.currency || company.currency,
-    companyId: company.id,
+    stockId: company.id,
     symbol: company.symbol
   };
 }

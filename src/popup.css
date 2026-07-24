@@ -16,6 +16,7 @@ body {
 }
 
 button,
+input,
 select {
   font: inherit;
 }
@@ -53,6 +54,7 @@ h1 {
   font-weight: 650;
 }
 
+input,
 select {
   width: 100%;
   min-height: 38px;
@@ -63,9 +65,17 @@ select {
   background: #ffffff;
 }
 
+input:focus,
 select:focus {
   border-color: #0f766e;
   outline: 3px solid rgba(15, 118, 110, 0.18);
+}
+
+.add-stock-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
 }
 
 .quote-panel {
@@ -75,6 +85,7 @@ select:focus {
 
 .quote-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   border: 1px solid #d6dce8;
@@ -98,6 +109,14 @@ select:focus {
   color: #0f766e;
   font-weight: 750;
   white-space: nowrap;
+}
+
+.remove-button {
+  min-height: 30px;
+  padding: 0 10px;
+  color: #8a1f11;
+  background: #fee4df;
+  font-size: 12px;
 }
 
 .actions {

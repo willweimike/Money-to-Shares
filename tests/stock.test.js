@@ -4,14 +4,22 @@ import test from "node:test";
 import { calculateShares, formatCalculation } from "../src/core/calculator.js";
 import {
   buildYahooChartUrl,
-  fetchCompanyQuote,
+  fetchStockQuote,
   getCachedQuote,
   normalizeQuoteMap,
   normalizeYahooChartQuote
 } from "../src/core/quotes.js";
 import { parseSelectedAmount } from "../src/core/selection.js";
-import { getSettings, saveSettings, getQuotes, saveQuotes } from "../src/core/storage.js";
-import { getCompany } from "../src/core/stocks.js";
+import { getSettings, saveSettings, getQuotes, saveQuotes, getStockList, saveStockList } from "../src/core/storage.js";
+import {
+  DEFAULT_STOCKS,
+  addStockToList,
+  createTaiwanStock,
+  findStock,
+  normalizeStockList,
+  normalizeTaiwanCode,
+  removeStockFromList
+} from "../src/core/stocks.js";
 
 test("parseSelectedAmount accepts one positive money-like number", () => {
   assert.equal(parseSelectedAmount("  $1,234.56  "), 1234.56);
@@ -27,38 +35,86 @@ test("parseSelectedAmount rejects ambiguous or invalid selections", () => {
   assert.equal(parseSelectedAmount("12,34"), null);
 });
 
-test("calculateShares handles US shares and Taiwan lots", () => {
-  const nvidia = getCompany("nvidia");
-  const nvdaResult = calculateShares(1000, { price: 250, currency: "USD" }, nvidia);
-  assert.deepEqual(
-    {
-      shares: nvdaResult.shares,
-      lots: nvdaResult.lots,
-      oddLots: nvdaResult.oddLots
-    },
-    { shares: 4, lots: 0, oddLots: 4 }
-  );
-  assert.equal(formatCalculation(nvdaResult, nvidia), "4 股, USD 1,000 / 250");
-
-  const tsmc = getCompany("tsmc");
+test("calculateShares handles Taiwan lots", () => {
+  const tsmc = createTaiwanStock("2330");
   const tsmcResult = calculateShares(1_500_000, { price: 900, currency: "TWD" }, tsmc);
   assert.deepEqual(
     {
+      stockId: tsmcResult.stockId,
       shares: tsmcResult.shares,
       lots: tsmcResult.lots,
       oddLots: tsmcResult.oddLots
     },
-    { shares: 1666, lots: 1, oddLots: 666 }
+    { stockId: "2330.TW", shares: 1666, lots: 1, oddLots: 666 }
   );
   assert.equal(formatCalculation(tsmcResult, tsmc), "1,666 股 (1 張 666 股), NTD 1,500,000 / 900");
 });
 
+test("taiwan stock helpers normalize custom numeric codes", () => {
+  assert.equal(normalizeTaiwanCode(" 2330 "), "2330");
+  assert.equal(normalizeTaiwanCode("00878"), "00878");
+  assert.equal(normalizeTaiwanCode("2330.TW"), null);
+  assert.equal(normalizeTaiwanCode("abc"), null);
+  assert.equal(normalizeTaiwanCode("123"), null);
+  assert.equal(normalizeTaiwanCode("1234567"), null);
+
+  assert.deepEqual(createTaiwanStock("0050"), {
+    id: "0050.TW",
+    code: "0050",
+    name: "0050",
+    symbol: "0050.TW",
+    currency: "TWD",
+    market: "TW",
+    lotSize: 1000
+  });
+});
+
+test("custom stock list normalization deduplicates and falls back to defaults", () => {
+  assert.deepEqual(DEFAULT_STOCKS.map((stock) => stock.symbol), ["2330.TW", "2454.TW"]);
+  assert.deepEqual(
+    normalizeStockList(["2330", "0050", "2330", "bad", { code: "00878" }]).map((stock) => stock.symbol),
+    ["2330.TW", "0050.TW", "00878.TW"]
+  );
+  assert.deepEqual(normalizeStockList(["bad"]).map((stock) => stock.symbol), ["2330.TW", "2454.TW"]);
+
+  const stocks = normalizeStockList(["2330", "0050"]);
+  assert.equal(findStock(stocks, "0050.TW").symbol, "0050.TW");
+  assert.equal(findStock(stocks, "missing").symbol, "2330.TW");
+});
+
+test("custom stock list operations add and remove with selected fallback", () => {
+  const addResult = addStockToList(normalizeStockList(["2330"]), "0050");
+  assert.deepEqual(addResult.stocks.map((stock) => stock.symbol), ["2330.TW", "0050.TW"]);
+  assert.equal(addResult.added, true);
+
+  const duplicateResult = addStockToList(addResult.stocks, "0050");
+  assert.equal(duplicateResult.added, false);
+  assert.equal(duplicateResult.reason, "duplicate");
+
+  const invalidResult = addStockToList(addResult.stocks, "2330.TW");
+  assert.equal(invalidResult.added, false);
+  assert.equal(invalidResult.reason, "invalid");
+
+  const keepSelection = removeStockFromList(addResult.stocks, "0050.TW", "2330.TW");
+  assert.deepEqual(keepSelection.stocks.map((stock) => stock.symbol), ["2330.TW"]);
+  assert.equal(keepSelection.selectedStockId, "2330.TW");
+
+  const fallbackSelection = removeStockFromList(addResult.stocks, "0050.TW", "0050.TW");
+  assert.equal(fallbackSelection.selectedStockId, "2330.TW");
+
+  const restoredDefaults = removeStockFromList(normalizeStockList(["2330"]), "2330.TW", "2330.TW");
+  assert.deepEqual(restoredDefaults.stocks.map((stock) => stock.symbol), ["2330.TW", "2454.TW"]);
+  assert.equal(restoredDefaults.selectedStockId, "2330.TW");
+});
+
 test("calculateShares rejects unusable amounts or prices", () => {
-  assert.throws(() => calculateShares(0, { price: 100 }, getCompany("nvidia")), /Amount/);
-  assert.throws(() => calculateShares(1000, { price: 0 }, getCompany("nvidia")), /Quote price/);
+  const stock = createTaiwanStock("2330");
+  assert.throws(() => calculateShares(0, { price: 100 }, stock), /Amount/);
+  assert.throws(() => calculateShares(1000, { price: 0 }, stock), /Quote price/);
 });
 
 test("normalizeYahooChartQuote returns a stable quote", () => {
+  const stock = createTaiwanStock("2330");
   const quote = normalizeYahooChartQuote(
     {
       chart: {
@@ -67,44 +123,45 @@ test("normalizeYahooChartQuote returns a stable quote", () => {
             meta: {
               regularMarketPrice: 123.45,
               previousClose: 120,
-              currency: "USD"
+              currency: "TWD"
             }
           }
         ]
       }
     },
-    getCompany("nvidia"),
+    stock,
     new Date("2026-06-02T10:00:00.000Z")
   );
 
   assert.deepEqual(quote, {
-    companyId: "nvidia",
-    symbol: "NVDA",
+    stockId: "2330.TW",
+    symbol: "2330.TW",
     price: 123.45,
-    currency: "USD",
+    currency: "TWD",
     updatedAt: "2026-06-02T10:00:00.000Z",
     source: "yahoo-chart"
   });
 });
 
 test("normalizeYahooChartQuote falls back to previous close and rejects empty payloads", () => {
+  const stock = createTaiwanStock("2330");
   const quote = normalizeYahooChartQuote(
     {
       chart: {
         result: [{ meta: { previousClose: 88, currency: "TWD" } }]
       }
     },
-    getCompany("tsmc"),
+    stock,
     new Date("2026-06-02T10:00:00.000Z")
   );
   assert.equal(quote.price, 88);
-  assert.throws(() => normalizeYahooChartQuote({}, getCompany("tsmc")), /No usable quote/);
+  assert.throws(() => normalizeYahooChartQuote({}, stock), /No usable quote/);
 });
 
-test("fetchCompanyQuote calls the Yahoo chart URL and handles HTTP errors", async () => {
-  const company = getCompany("mediatek");
+test("fetchStockQuote calls the Yahoo chart URL and handles HTTP errors", async () => {
+  const stock = createTaiwanStock("2454");
   const fetchOk = async (url) => {
-    assert.equal(url, buildYahooChartUrl(company.symbol));
+    assert.equal(url, buildYahooChartUrl(stock.symbol));
     return {
       ok: true,
       async json() {
@@ -117,12 +174,12 @@ test("fetchCompanyQuote calls the Yahoo chart URL and handles HTTP errors", asyn
     };
   };
 
-  const quote = await fetchCompanyQuote(company, fetchOk, new Date("2026-06-02T10:00:00.000Z"));
+  const quote = await fetchStockQuote(stock, fetchOk, new Date("2026-06-02T10:00:00.000Z"));
   assert.equal(quote.symbol, "2454.TW");
   assert.equal(quote.price, 1200);
 
   await assert.rejects(
-    () => fetchCompanyQuote(company, async () => ({ ok: false, status: 429 }), new Date()),
+    () => fetchStockQuote(stock, async () => ({ ok: false, status: 429 }), new Date()),
     /HTTP 429/
   );
 });
@@ -130,37 +187,31 @@ test("fetchCompanyQuote calls the Yahoo chart URL and handles HTTP errors", asyn
 test("getCachedQuote respects ttl and normalizeQuoteMap removes invalid entries", () => {
   const now = Date.parse("2026-06-02T10:05:00.000Z");
   const quotes = normalizeQuoteMap({
-    nvidia: {
+    "2330.TW": {
       price: 100,
-      currency: "USD",
+      currency: "TWD",
       updatedAt: "2026-06-02T10:04:00.000Z",
       source: "test"
     },
     unknown: {
       price: 1
     },
-    tsmc: {
+    "0050.TW": {
       price: 0
     }
   });
 
-  assert.equal(getCachedQuote(quotes, "nvidia", now)?.price, 100);
-  assert.equal(getCachedQuote(quotes, "nvidia", now + 10 * 60 * 1000), null);
-  assert.deepEqual(Object.keys(quotes), ["nvidia"]);
+  assert.equal(getCachedQuote(quotes, "2330.TW", now)?.price, 100);
+  assert.equal(getCachedQuote(quotes, "2330.TW", now + 10 * 60 * 1000), null);
+  assert.deepEqual(Object.keys(quotes), ["2330.TW"]);
 });
 
-test("settings and quotes round trip through storage wrappers", async () => {
+test("quotes round trip through storage wrappers", async () => {
   const runtime = { lastError: null };
-  const sync = new MemoryStorageArea();
   const local = new MemoryStorageArea();
 
-  assert.deepEqual(await getSettings(sync, runtime), { companyId: "nvidia" });
-  assert.deepEqual(await saveSettings(sync, runtime, { companyId: "tsmc" }), { companyId: "tsmc" });
-  assert.deepEqual(await getSettings(sync, runtime), { companyId: "tsmc" });
-  assert.deepEqual(await saveSettings(sync, runtime, { companyId: "not-real" }), { companyId: "nvidia" });
-
   await saveQuotes(local, runtime, {
-    tsmc: {
+    "2330.TW": {
       price: 900,
       currency: "TWD",
       updatedAt: "2026-06-02T10:00:00.000Z",
@@ -168,7 +219,25 @@ test("settings and quotes round trip through storage wrappers", async () => {
     }
   });
 
-  assert.equal((await getQuotes(local, runtime)).tsmc.price, 900);
+  assert.equal((await getQuotes(local, runtime))["2330.TW"].price, 900);
+});
+
+test("stock list and selected stock settings round trip through local storage wrappers", async () => {
+  const runtime = { lastError: null };
+  const local = new MemoryStorageArea();
+
+  assert.deepEqual((await getStockList(local, runtime)).map((stock) => stock.symbol), ["2330.TW", "2454.TW"]);
+  assert.deepEqual((await getSettings(local, runtime)).selectedStockId, "2330.TW");
+
+  await saveStockList(local, runtime, ["0050", "00878", "0050", "bad"]);
+  assert.deepEqual((await getStockList(local, runtime)).map((stock) => stock.symbol), ["0050.TW", "00878.TW"]);
+
+  assert.deepEqual(await saveSettings(local, runtime, { selectedStockId: "00878.TW" }), {
+    selectedStockId: "00878.TW"
+  });
+  assert.deepEqual(await saveSettings(local, runtime, { selectedStockId: "missing" }), {
+    selectedStockId: "0050.TW"
+  });
 });
 
 class MemoryStorageArea {
